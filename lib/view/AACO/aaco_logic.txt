@@ -1,0 +1,71 @@
+public function store(Request $request)
+    {
+        try {
+            $validator = validator($request->all(), [
+                'district_id' => 'required|integer',
+                'upazila_id' => 'integer',
+                'union_id' => 'integer',
+                'apointment_date' => 'required_if:recruitment_status,1|date_format:d/m/Y',
+                'recruitment_status' => 'required_if:recruitment_status,1|integer',
+                'acco_availiablity_status' => 'required_if:recruitment_status,1|integer',
+                'name' => 'required_if:acco_availiablity_status,1|string',
+                'email' => 'required_if:acco_availiablity_status,1|email',
+                'mobile' => 'required_if:acco_availiablity_status,1|numeric',
+                'gender' => 'required_if:acco_availiablity_status,1|numeric',
+            ]);
+            if ($validator->fails()) {
+                return response()->json([
+                    'status' => 422,
+                    'message' => 'Validation error',
+                    'errors' => $validator->errors(),
+                ], 422);
+            }
+
+            $aacoInformation = AacoInfo::where('district_id', $request->district_id)
+                ->where('upazila_id', $request->upazila_id)
+                ->where('union_id', $request->union_id)
+                ->first();
+            if ($aacoInformation) {
+                return response()->json([
+                    'status' => 422,
+                    'message' => 'This AACO Information already exists',
+                ], 422);
+            }
+
+            $aacoInformation = new AacoInfo();
+            $aacoInformation->aaco_reason_id = $request->aaco_reason_id;
+
+            $aacoInformation->district_id = $request->district_id;
+            $aacoInformation->upazila_id = $request->upazila_id;
+            $aacoInformation->union_id = $request->union_id;
+            if ($request->recruitment_status == 1) {
+                $aacoInformation->apointment_date = Carbon::createFromFormat('d/m/Y', $request->apointment_date)->format('Y-m-d');
+            }
+            if ($request->recruitment_status == 0) {
+                $aacoInformation->non_completion_other = $request->non_completion_other;
+            }
+            if ($request->recruitment_status == 2) {
+                $aacoInformation->approximate_date = Carbon::createFromFormat('d/m/Y', $request->approximate_date)->format('Y-m-d');
+            }
+            $aacoInformation->recruitment_status = $request->recruitment_status;
+            $aacoInformation->acco_availiablity_status = $request->acco_availiablity_status;
+            if ($request->acco_availiablity_status == 0) {
+                $aacoInformation->non_availability_other = $request->non_availability_other;
+            }
+            $aacoInformation->updated_at = null;
+            $aacoInformation->save();
+
+            return response()->json([
+                'status' => 200,
+                'message' => 'AACO Information created successfully',
+                'data' => new AacoInfoResource($aacoInformation),
+            ], 200);
+        } catch (\Exception $e) {
+            // Handle other
+            return response()->json([
+                'status' => 500,
+                'message' => 'Internal Server Error',
+                'errors' => $e->getMessage(),
+            ], 500);
+        }
+    }
